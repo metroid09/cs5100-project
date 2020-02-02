@@ -13,9 +13,9 @@ import sys
 import pygame
 from pygame.locals import *
 
-from .render import (drawBullets, drawGrid, drawPressKeyMsg, drawScore,
-                     drawRuumba, showGameOverScreen, showStartScreen)
-from .ruumba import ruumba
+from .classes import CELL_COLORS, Cell, CellType, Ruumba
+from .render import (drawBullets, drawGrid, drawPressKeyMsg, drawRuumba,
+                     drawScore, showGameOverScreen, showStartScreen)
 
 SIM_NAME = 'ruumba'
 FPS = 5
@@ -99,11 +99,6 @@ def runGame():
                 newHead = get_new_head(direction[ruumba_iter], ruumbaCoords)
             if DEBUG:
                 is_safe, newHead = next_move_safe(ruumbaCoords)
-
-            if eaten is not None:
-                apples[eaten] = getRandomLocation()
-            else:
-                del_coords = ruumbaCoords.pop() # remove ruumba's tail segment
 
             if is_safe:
                 ruumbaCoords.insert(0, newHead)   #have already removed the last segment
