@@ -11,53 +11,36 @@ import random
 import sys
 
 import pygame
+import config
+from classes import CELL_COLORS, Cell, CellType, Direction, Ruumba, TerrainCell
 from pygame.locals import *
+# from render import (drawGrid, drawPressKeyMsg, drawScore, showGameOverScreen,
+#                     showStartScreen)
+from colors import *
 
-from .classes import CELL_COLORS, Cell, CellType, Ruumba
-from .render import (drawBullets, drawGrid, drawPressKeyMsg, drawRuumba,
-                     drawScore, showGameOverScreen, showStartScreen)
-
-SIM_NAME = 'ruumba'
-FPS = 5
-WINDOWWIDTH = 1280
-WINDOWHEIGHT = 720
-CELLSIZE = 40
-RADIUS = math.floor(CELLSIZE/2.5)
-assert WINDOWWIDTH % CELLSIZE == 0, "Window width must be a multiple of cell size."
-assert WINDOWHEIGHT % CELLSIZE == 0, "Window height must be a multiple of cell size."
-CELLWIDTH = int(WINDOWWIDTH / CELLSIZE)
-CELLHEIGHT = int(WINDOWHEIGHT / CELLSIZE)
-
-#             R    G    B
-WHITE     = (255, 255, 255)
-BLACK     = (  0,   0,   0)
-RED       = (255,   0,   0)
-GREEN     = (  0, 255,   0)
-DARKGREEN = (  0, 155,   0)
-DARKGRAY  = ( 40,  40,  40)
-YELLOW    = (255, 255,   0)
-BLUE      = ( 47,  41,  99)
-LIGHTBLUE = ( 72,  63, 155)
-BGCOLOR = BLACK
-
-UP = 'up'
-DOWN = 'down'
-LEFT = 'left'
-RIGHT = 'right'
-
-HEAD = 0 # syntactic sugar: index of the ruumba's head
-
-NUM_RUUMBAS = 2
-
-DEBUG = True
+SIM_NAME = config.SIM_NAME
+FPS = config.FPS
+WINDOWWIDTH = config.WINDOWWIDTH
+WINDOWHEIGHT = config.WINDOWHEIGHT
+CELLSIZE = config.CELLSIZE
+RADIUS = config.RADIUS
+CELLWIDTH = config.CELLWIDTH
+CELLHEIGHT = config.CELLHEIGHT
+BGCOLOR = config.BGCOLOR
+HEAD = config.HEAD
+NUM_RUUMBAS = config.NUM_RUUMBAS
+DEBUG = config.DEBUG
 
 def main():
     global FPSCLOCK, DISPLAYSURF, BASICFONT
 
     pygame.init()
     FPSCLOCK = pygame.time.Clock()
+    config.FPSCLOCK = FPSCLOCK
     DISPLAYSURF = pygame.display.set_mode((WINDOWWIDTH, WINDOWHEIGHT))
+    config.DISPLAYSURF = DISPLAYSURF
     BASICFONT = pygame.font.Font('freesansbold.ttf', 18)
+    config.BASICFONT = BASICFONT
     pygame.display.set_caption(SIM_NAME)
 
     showStartScreen()
@@ -67,90 +50,81 @@ def main():
 
 
 def runGame():
+
     # Set a random start point.
     ruumbas = []
-    walls = []
-    direction = []
     for n in range(NUM_RUUMBAS):
-        ruumba = Ruumba()
         startx, starty = get_rand_coords()
-        ruumbas.append(ruumbaCoords)
-        direction.append(RIGHT)
+        ruumba = Ruumba(startx, starty, n, Direction.UP)
+        ruumbas.append(ruumba)
+
+    terrain = []
+    for i in range(CELLWIDTH):
+        add = []
+        for j in range(CELLHEIGHT):
+            if j == 0 or j == CELLHEIGHT-1 or i == 0 or i == CELLWIDTH-1:
+                add.append(TerrainCell(i, j, CellType.WALL))
+                continue
+            if random.randint(0, 1000) > 970:
+                add.append(TerrainCell(i, j, random.choice([CellType.FLOOR, CellType.FURNITURE, CellType.STAIRS])))
+                continue
+            add.append(TerrainCell(i, j, CellType.FLOOR))
+        terrain.append(add)
 
     while True: # main game loop
         for event in pygame.event.get(): # event handling loop
-            direction = get_direction(event, direction)
+            get_direction(event)
 
-        for ruumba_iter in range(len(ruumbas)):
-            ruumbaCoords = ruumbas[ruumba_iter]
-            if hits_snek(ruumbaCoords[HEAD], ruumba_iter, ruumbas):
-                delete_ruumbas.append(ruumba_iter)
-                continue
-
-            # check if ruumba has eaten an apple
-            eaten = None
-            for i, apple in enumerate(apples):
-                if ruumbaCoords[HEAD]['x'] == apple['x'] and ruumbaCoords[HEAD]['y'] == apple['y']:
-                    eaten = i
-
-            # move the ruumba by adding a segment in the direction it is moving
-            is_safe = True
-            if ruumba_iter == 0 or not DEBUG:
-                newHead = get_new_head(direction[ruumba_iter], ruumbaCoords)
-            if DEBUG:
-                is_safe, newHead = next_move_safe(ruumbaCoords)
-
-            if is_safe:
-                ruumbaCoords.insert(0, newHead)   #have already removed the last segment
-            else:
-                ruumbaCoords.insert(-1, del_coords)
+        for ruumba in ruumbas:
+            ruumba.random_move()
+            ruumba.interact_with(terrain[ruumba.pos_x][ruumba.pos_y])
 
         # Render
         DISPLAYSURF.fill(BGCOLOR)
-        for ruumbaCoords in ruumbas:
-            drawRuumba(ruumbaCoords)
-        draw_walls(walls)
-        for i, ruumbaCoords in enumerate(ruumbas):
-            drawScore(len(ruumbaCoords) - 3, i)
+        for l in terrain:
+            for cell in l:
+                cell.render()
+        for ruumba in ruumbas:
+            ruumba.render()
         pygame.display.update()
         FPSCLOCK.tick(FPS)
 
 
-def get_direction(event, direction):
+def get_direction(event):
     if event.type == QUIT:
         terminate()
-    elif event.type == KEYDOWN:
-        if event.key == K_LEFT and direction[0] != RIGHT:
-            direction[0] = LEFT
-        elif event.key == K_RIGHT and direction[0] != LEFT:
-            direction[0] = RIGHT
-        elif event.key == K_UP and direction[0] != DOWN:
-            direction[0] = UP
-        elif event.key == K_DOWN and direction[0] != UP:
-            direction[0] = DOWN
-        if event.key == K_a and direction[1] != RIGHT:
-            direction[1] = LEFT
-        elif event.key == K_d and direction[1] != LEFT:
-            direction[1] = RIGHT
-        elif event.key == K_w and direction[1] != DOWN:
-            direction[1] = UP
-        elif event.key == K_s and direction[0] != UP:
-            direction[1] = DOWN
-        if event.key == K_KP4 and direction[0] != RIGHT:
-            for i in range(len(direction)):
-                direction[i] = LEFT
-        elif event.key == K_KP6 and direction[0] != LEFT:
-            for i in range(len(direction)):
-                direction[i] = RIGHT
-        elif event.key == K_KP8 and direction[0] != DOWN:
-            for i in range(len(direction)):
-                direction[i] = UP
-        elif event.key == K_KP2 and direction[0] != UP:
-            for i in range(len(direction)):
-                direction[i] = DOWN
-        if event.key == K_ESCAPE:
-            terminate()
-    return direction
+    # elif event.type == KEYDOWN:
+    #     if event.key == K_LEFT and direction[0] != RIGHT:
+    #         direction[0] = LEFT
+    #     elif event.key == K_RIGHT and direction[0] != LEFT:
+    #         direction[0] = RIGHT
+    #     elif event.key == K_UP and direction[0] != DOWN:
+    #         direction[0] = UP
+    #     elif event.key == K_DOWN and direction[0] != UP:
+    #         direction[0] = DOWN
+    #     if event.key == K_a and direction[1] != RIGHT:
+    #         direction[1] = LEFT
+    #     elif event.key == K_d and direction[1] != LEFT:
+    #         direction[1] = RIGHT
+    #     elif event.key == K_w and direction[1] != DOWN:
+    #         direction[1] = UP
+    #     elif event.key == K_s and direction[0] != UP:
+    #         direction[1] = DOWN
+    #     if event.key == K_KP4 and direction[0] != RIGHT:
+    #         for i in range(len(direction)):
+    #             direction[i] = LEFT
+    #     elif event.key == K_KP6 and direction[0] != LEFT:
+    #         for i in range(len(direction)):
+    #             direction[i] = RIGHT
+    #     elif event.key == K_KP8 and direction[0] != DOWN:
+    #         for i in range(len(direction)):
+    #             direction[i] = UP
+    #     elif event.key == K_KP2 and direction[0] != UP:
+    #         for i in range(len(direction)):
+    #             direction[i] = DOWN
+    #     if event.key == K_ESCAPE:
+    #         terminate()
+    # return direction
 
 
 def get_rand_coords():
@@ -176,6 +150,79 @@ def terminate():
 
 def getRandomLocation():
     return {'x': random.randint(0, CELLWIDTH - 1), 'y': random.randint(0, CELLHEIGHT - 1)}
+
+def drawScore(score, i):
+    i = i+1
+    scoreSurf = BASICFONT.render('Score {}: {}'.format(i, score), True, WHITE)
+    scoreRect = scoreSurf.get_rect()
+    scoreRect.topleft = (WINDOWWIDTH - 120, 20 * i)
+    DISPLAYSURF.blit(scoreSurf, scoreRect)
+
+
+def drawGrid():
+    for x in range(0, WINDOWWIDTH, CELLSIZE): # draw vertical lines
+        pygame.draw.line(DISPLAYSURF, DARKGRAY, (x, 0), (x, WINDOWHEIGHT))
+    for y in range(0, WINDOWHEIGHT, CELLSIZE): # draw horizontal lines
+        pygame.draw.line(DISPLAYSURF, DARKGRAY, (0, y), (WINDOWWIDTH, y))
+
+
+def showGameOverScreen():
+    gameOverFont = pygame.font.Font('freesansbold.ttf', 150)
+    gameSurf = gameOverFont.render('Game', True, WHITE)
+    overSurf = gameOverFont.render('Over', True, WHITE)
+    gameRect = gameSurf.get_rect()
+    overRect = overSurf.get_rect()
+    gameRect.midtop = (math.floor(WINDOWWIDTH / 2), 10)
+    overRect.midtop = (math.floor(WINDOWWIDTH / 2), gameRect.height + 10 + 25)
+
+    DISPLAYSURF.blit(gameSurf, gameRect)
+    DISPLAYSURF.blit(overSurf, overRect)
+    drawPressKeyMsg()
+    pygame.display.update()
+    pygame.time.wait(500)
+    checkForKeyPress() # clear out any key presses in the event queue
+
+    while True:
+        if checkForKeyPress():
+            pygame.event.get() # clear event queue
+            return
+
+
+def showStartScreen():
+    titleFont = pygame.font.Font('freesansbold.ttf', 100)
+    titleSurf1 = titleFont.render(SIM_NAME, True, DARKGRAY, WHITE)
+    titleSurf2 = titleFont.render(SIM_NAME, True, YELLOW)
+
+    degrees1 = 0
+    degrees2 = 0
+    while True:
+        DISPLAYSURF.fill(BGCOLOR)
+        rotatedSurf1 = pygame.transform.rotate(titleSurf1, degrees1)
+        rotatedRect1 = rotatedSurf1.get_rect()
+        rotatedRect1.center = (math.floor(WINDOWWIDTH / 2), math.floor(WINDOWHEIGHT / 2))
+        DISPLAYSURF.blit(rotatedSurf1, rotatedRect1)
+
+        rotatedSurf2 = pygame.transform.rotate(titleSurf2, degrees2)
+        rotatedRect2 = rotatedSurf2.get_rect()
+        rotatedRect2.center = (math.floor(WINDOWWIDTH / 2), math.floor(WINDOWHEIGHT / 2))
+        DISPLAYSURF.blit(rotatedSurf2, rotatedRect2)
+
+        drawPressKeyMsg()
+
+        if checkForKeyPress():
+            pygame.event.get() # clear event queue
+            return
+        pygame.display.update()
+        FPSCLOCK.tick(FPS)
+        degrees1 += 3 # rotate by 3 degrees each frame
+        degrees2 += 7 # rotate by 7 degrees each frame
+
+
+def drawPressKeyMsg():
+    pressKeySurf = BASICFONT.render('Press a key to play.', True, YELLOW)
+    pressKeyRect = pressKeySurf.get_rect()
+    pressKeyRect.topleft = (WINDOWWIDTH - 200, WINDOWHEIGHT - 30)
+    DISPLAYSURF.blit(pressKeySurf, pressKeyRect)
 
 
 if __name__ == '__main__':

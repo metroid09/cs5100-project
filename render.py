@@ -1,40 +1,14 @@
 import random, pygame, sys,math, copy
 from pygame.locals import *
 
+from colors import *
+
 def drawScore(score, i):
     i = i+1
     scoreSurf = BASICFONT.render('Score {}: {}'.format(i, score), True, WHITE)
     scoreRect = scoreSurf.get_rect()
     scoreRect.topleft = (WINDOWWIDTH - 120, 20 * i)
     DISPLAYSURF.blit(scoreSurf, scoreRect)
-
-
-def drawRuumba(ruumbaCoords):
-    for coord in ruumbaCoords:
-        x = coord['x'] * CELLSIZE
-        y = coord['y'] * CELLSIZE
-        ruumbaSegmentRect = pygame.Rect(x, y, CELLSIZE, CELLSIZE)
-        pygame.draw.rect(DISPLAYSURF, DARKGREEN, ruumbaSegmentRect)
-        ruumbaInnerSegmentRect = pygame.Rect(x + 4, y + 4, CELLSIZE - 8, CELLSIZE - 8)
-        pygame.draw.rect(DISPLAYSURF, GREEN, ruumbaInnerSegmentRect)
-
-
-def drawBullets(bullets):
-    for bullet in bullets:
-        x = bullet[0] * CELLSIZE
-        y = bullet[1] * CELLSIZE
-        bulletRect = pygame.Rect(x + 8, y + 8, CELLSIZE - 16, CELLSIZE - 16)
-        pygame.draw.rect(DISPLAYSURF, WHITE, bulletRect)
-
-
-def drawApple(coord):
-    x = coord['x'] * CELLSIZE
-    y = coord['y'] * CELLSIZE
-    xcenter = coord['x'] * CELLSIZE + math.floor(CELLSIZE/2)
-    ycenter = coord['y'] * CELLSIZE+ math.floor(CELLSIZE/2)
-    #appleRect = pygame.Rect(x, y, CELLSIZE, CELLSIZE)
-    #pygame.draw.rect(DISPLAYSURF, RED, appleRect)
-    pygame.draw.circle(DISPLAYSURF, RED,(xcenter,ycenter),RADIUS)
 
 
 def drawGrid():
@@ -101,16 +75,4 @@ def drawPressKeyMsg():
     pressKeyRect = pressKeySurf.get_rect()
     pressKeyRect.topleft = (WINDOWWIDTH - 200, WINDOWHEIGHT - 30)
     DISPLAYSURF.blit(pressKeySurf, pressKeyRect)
-
-
-def draw_walls(walls):
-    for coord in walls:
-        x = coord['x'] * CELLSIZE
-        y = coord['y'] * CELLSIZE
-        ruumbaSegmentRect = pygame.Rect(x, y, CELLSIZE, CELLSIZE)
-        pygame.draw.rect(DISPLAYSURF, BLUE, ruumbaSegmentRect)
-        ruumbaInnerSegmentRect = pygame.Rect(x + 4, y + 4, CELLSIZE - 8, CELLSIZE - 8)
-        pygame.draw.rect(DISPLAYSURF, LIGHTBLUE, ruumbaInnerSegmentRect)
-
-
 

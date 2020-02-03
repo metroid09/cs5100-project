@@ -1,0 +1,10 @@
+#             R    G    B
+WHITE     = (255, 255, 255)
+BLACK     = (  0,   0,   0)
+RED       = (255,   0,   0)
+GREEN     = (  0, 255,   0)
+DARKGREEN = (  0, 155,   0)
+DARKGRAY  = ( 40,  40,  40)
+YELLOW    = (255, 255,   0)
+BLUE      = ( 47,  41,  99)
+LIGHTBLUE = ( 72,  63, 155)
