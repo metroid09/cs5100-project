@@ -5,6 +5,7 @@ import pygame
 from pygame.locals import *
 
 import config
+from colors import BROWN_LEVEL
 
 SIM_NAME = config.SIM_NAME
 FPS = config.FPS
@@ -41,6 +42,7 @@ class CellType(Enum):
     FLOOR = 'FLOOR'
     CHARGER = 'CHARGER'
     RUUMBA = 'RUUMBA'
+    IMPASSABLE = 'IMPASSABLE'
 
 
 CELL_COLORS = {
@@ -51,6 +53,7 @@ CELL_COLORS = {
     CellType.CHARGER: GREEN,
     CellType.RUUMBA: LIGHTBLUE,
     CellType.FLOOR: BLACK,
+    CellType.IMPASSABLE: YELLOW,
 }
 
 
@@ -62,14 +65,23 @@ class Direction(Enum):
 
     @classmethod
     def opposite_direction(cls, direction):
-        if direction == UP:
-            return DOWN
-        if direction == DOWN:
-            return UP
-        if direction == LEFT:
-            return RIGHT
-        if direction == RIGHT:
-            return LEFT
+        if direction == cls.UP:
+            return cls.DOWN
+        if direction == cls.DOWN:
+            return cls.UP
+        if direction == cls.LEFT:
+            return cls.RIGHT
+        if direction == cls.RIGHT:
+            return cls.LEFT
+
+    @classmethod
+    def other_directions(cls, direction):
+        directions = []
+        for d in list(cls):
+            if d == direction:
+                continue
+            directions.append(d)
+        return directions
 
 
 class Cell(object):
@@ -95,10 +107,7 @@ class Cell(object):
         x = self.pos_x * CELLSIZE
         y = self.pos_y * CELLSIZE
         cellRect = pygame.Rect(x, y, CELLSIZE, CELLSIZE)
-        try:
-            pygame.draw.rect(config.DISPLAYSURF, self.color, cellRect)
-        except TypeError:
-            import ipdb; ipdb.set_trace()
+        pygame.draw.rect(config.DISPLAYSURF, self.color, cellRect)
 
     def __str__(self):
         return "<Cell {}: (x:{},y:{}) >".format(self.cell_type, self.pos_x, self.pos_y)
@@ -113,12 +122,28 @@ class TerrainCell(Cell):
         super().__init__(x, y, cell_type=cell_type, color=color)
         if cell_type == CellType.FLOOR:
             self.dirt = random.randint(0, 5)
+            self.color = BROWN_LEVEL[self.dirt]
 
     @property
     def is_dirty(self):
         if self.cell_type == CellType.FLOOR:
             return self.dirt > 0
         return False
+
+    def vacuum(self):
+        if self.is_dirty:
+            self.dirt -= 1
+            self.color = BROWN_LEVEL[self.dirt]
+
+    def render(self):
+        if self.cell_type == CellType.IMPASSABLE:
+            X = pygame.font.Font('freesansbold.ttf', 45)
+            X = X.render('X', True, WHITE)
+            X_rect = X.get_rect()
+            X_rect.midtop = ((self.pos_x * CELLSIZE)+(CELLSIZE/2), self.pos_y * CELLSIZE)
+            config.DISPLAYSURF.blit(X, X_rect)
+            return
+        super().render()
 
 
 # These are moveable cells which ride "over" the background cells
@@ -145,35 +170,46 @@ class MoveableCell(Cell):
             self.frame = 1
             if random.randint(0, 6) == 5:
                 self.facing_direction = random.choice(list(Direction))
-            if self.facing_direction == Direction.UP:
-                self.move_up()
-            if self.facing_direction == Direction.DOWN:
-                self.move_down()
-            if self.facing_direction == Direction.LEFT:
-                self.move_left()
-            if self.facing_direction == Direction.RIGHT:
-                self.move_right()
+            self.move()
+        if self.hits_edge():
+            self.undo_move()
         self.frame += 1
 
+    def move(self):
+        if self.facing_direction == Direction.UP:
+            self.move_up()
+        if self.facing_direction == Direction.DOWN:
+            self.move_down()
+        if self.facing_direction == Direction.LEFT:
+            self.move_left()
+        if self.facing_direction == Direction.RIGHT:
+            self.move_right()
+
     def move_up(self):
-        self.pos_x = self.pos_x + 1
-
-    def move_down(self):
-        self.pos_x = self.pos_x - 1
-
-    def move_left(self):
         self.pos_y = self.pos_y + 1
 
-    def move_right(self):
+    def move_down(self):
         self.pos_y = self.pos_y - 1
+
+    def move_left(self):
+        self.pos_x = self.pos_x + 1
+
+    def move_right(self):
+        self.pos_x = self.pos_x - 1
+
+    def undo_move(self):
+        new_direction = random.choice(Direction.other_directions(self.facing_direction))
+        self.facing_direction = Direction.opposite_direction(self.facing_direction)
+        self.move()
+        self.facing_direction = new_direction
 
     def interact_with(self, cell=None):
         # This will have the cell passed in that we are "interacting with" so we can do things based on it
-        pass
+        if cell.cell_type == CellType.FURNITURE or cell.cell_type == CellType.STAIRS or cell.cell_type == CellType.WALL:
+            self.undo_move()
 
     def hits_edge(self):
         global CELLWIDTH, CELLHEIGHT
-        self.facing_direction = Direction.opposite_direction(self.facing_direction)
         return self.pos_x == -1 or self.pos_x == CELLWIDTH or self.pos_y == -1 or self.pos_y == CELLHEIGHT
 
     def hits_object(self, obj):
@@ -191,32 +227,13 @@ class Ruumba(MoveableCell):
 
     def interact_with(self, cell=None):
         super().interact_with(cell)
-        self.set_speed(dirt=cell.dirt)
+        if self.frame % self.speed == 0:
+            self.set_speed(dirt=cell.dirt)
+            cell.vacuum()
+            print("Cell vacuumed: DIRT={}".format(cell.dirt))
 
     def set_speed(self, dirt=0):
         if dirt > 0:
-            self.speed = 4 # Set speed to 4 frames/cell
+            self.speed = 5 # Set speed to 4 frames/cell
             return 
         self.speed = 1 # Set speed to 1 frame/cell
-
-    # Might need this for AI?
-    # def next_move_safe(ruumbaCoords, depth=0, max_depth=30):
-    #     is_hit = True
-    #     loops = 0
-    #     choices = [UP, DOWN, LEFT, RIGHT]
-    #     while is_hit:
-    #         direction = random.choice(choices)
-    #         choices.remove(direction)
-    #         newHead = get_new_head(direction, ruumbaCoords)
-    #         is_hit = hits_self(newHead, ruumbaCoords) or hits_wall(newHead)
-    #         if not is_hit and depth < max_depth + 3:
-    #             newCoords = copy.deepcopy(ruumbaCoords)
-    #             newCoords.insert(0, newHead)
-    #             del newCoords[-1] # remove ruumba's tail segment
-    #             safe, _ = next_move_safe(newCoords, depth=depth+1, max_depth=max_depth)
-    #             # if not safe and depth == 0 and len(choices) == 0:
-    #             #     import ipdb; ipdb.set_trace()
-    #             is_hit = not safe
-    #         if len(choices) == 0:
-    #             return False, newHead
-    #     return True, newHead

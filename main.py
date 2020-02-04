@@ -17,6 +17,9 @@ from pygame.locals import *
 # from render import (drawGrid, drawPressKeyMsg, drawScore, showGameOverScreen,
 #                     showStartScreen)
 from colors import *
+from utils import dump_room, load_room
+
+DISPLAYSURF = config.DISPLAYSURF
 
 SIM_NAME = config.SIM_NAME
 FPS = config.FPS
@@ -51,25 +54,33 @@ def main():
 
 def runGame():
 
-    # Set a random start point.
-    ruumbas = []
-    for n in range(NUM_RUUMBAS):
-        startx, starty = get_rand_coords()
-        ruumba = Ruumba(startx, starty, n, Direction.UP)
-        ruumbas.append(ruumba)
-
     terrain = []
     for i in range(CELLWIDTH):
         add = []
         for j in range(CELLHEIGHT):
             if j == 0 or j == CELLHEIGHT-1 or i == 0 or i == CELLWIDTH-1:
-                add.append(TerrainCell(i, j, CellType.WALL))
-                continue
+                if random.randint(0, 1000) > 970:
+                    add.append(TerrainCell(i, j, CellType.CHARGER))
+                    try:
+                        ruumbas[0].pos_x = i
+                        ruumbas[0].pos_y = j
+                    except UnboundLocalError:
+                        continue
             if random.randint(0, 1000) > 970:
                 add.append(TerrainCell(i, j, random.choice([CellType.FLOOR, CellType.FURNITURE, CellType.STAIRS])))
                 continue
             add.append(TerrainCell(i, j, CellType.FLOOR))
         terrain.append(add)
+
+    terrain = load_room()
+
+    # Set a random start point.
+    ruumbas = []
+    for i in range(len(terrain)):
+        for j in range(len(terrain[i])):
+            if terrain[i][j].cell_type == CellType.CHARGER:
+                ruumba = Ruumba(i, j, len(ruumbas), random.choice(list(Direction)))
+                ruumbas.append(ruumba)
 
     while True: # main game loop
         for event in pygame.event.get(): # event handling loop
