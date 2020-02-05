@@ -7,7 +7,7 @@ DISPLAYSURF=None
 BASICFONT=None
 
 SIM_NAME = 'ruumba'
-FPS = 10
+FPS = 5000
 WINDOWWIDTH = 1280
 WINDOWHEIGHT = 720
 CELLSIZE = 40
@@ -24,3 +24,5 @@ HEAD = 0 # syntactic sugar: index of the ruumba's head
 NUM_RUUMBAS = 2
 
 DEBUG = True
+
+BATTERY_MAX = 1000

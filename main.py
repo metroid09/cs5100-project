@@ -89,6 +89,7 @@ def runGame():
         for ruumba in ruumbas:
             ruumba.random_move()
             ruumba.interact_with(terrain[ruumba.pos_x][ruumba.pos_y])
+            ruumba.update_internal_state()
 
         # Render
         DISPLAYSURF.fill(BGCOLOR)

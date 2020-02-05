@@ -19,6 +19,7 @@ BGCOLOR = config.BGCOLOR
 HEAD = config.HEAD
 NUM_RUUMBAS = config.NUM_RUUMBAS
 DEBUG = config.DEBUG
+BATTERY_MAX = config.BATTERY_MAX
 
 #             R    G    B
 WHITE     = (255, 255, 255)
@@ -186,16 +187,16 @@ class MoveableCell(Cell):
             self.move_right()
 
     def move_up(self):
-        self.pos_y = self.pos_y + 1
-
-    def move_down(self):
         self.pos_y = self.pos_y - 1
 
+    def move_down(self):
+        self.pos_y = self.pos_y + 1
+
     def move_left(self):
-        self.pos_x = self.pos_x + 1
+        self.pos_x = self.pos_x - 1
 
     def move_right(self):
-        self.pos_x = self.pos_x - 1
+        self.pos_x = self.pos_x + 1
 
     def undo_move(self):
         new_direction = random.choice(Direction.other_directions(self.facing_direction))
@@ -215,25 +216,64 @@ class MoveableCell(Cell):
     def hits_object(self, obj):
         return self.pos_x == obj.pos_x and self.pos_y == obj.pos_y
 
+    def update_internal_state(self):
+        pass
+
 
 
 class Ruumba(MoveableCell):
+    battery = BATTERY_MAX
+    start_x = 0
+    start_y = 0
+    charged = True
 
     def __init__(self, x, y, id, facing_direction, **kwargs):
         if 'cell_type' in kwargs:
             kwargs.pop('cell_type')
         self.cell_type = CellType.RUUMBA
         super().__init__(x, y, id, facing_direction, cell_type=CellType.RUUMBA, **kwargs)
+        self.start_x = x
+        self.start_y = y
 
     def interact_with(self, cell=None):
         super().interact_with(cell)
         if self.frame % self.speed == 0:
             self.set_speed(dirt=cell.dirt)
             cell.vacuum()
-            print("Cell vacuumed: DIRT={}".format(cell.dirt))
+            # print("Cell vacuumed: DIRT={}".format(cell.dirt))
 
     def set_speed(self, dirt=0):
         if dirt > 0:
             self.speed = 5 # Set speed to 4 frames/cell
             return 
         self.speed = 1 # Set speed to 1 frame/cell
+
+    def random_move(self):
+        if self.charged:
+            super().random_move()
+        else:
+            if self.start_x != self.pos_x or self.start_y != self.pos_y:
+                _start_x = self.pos_x
+                _start_y = self.pos_y
+                if self.start_x < self.pos_x:
+                    self.facing_direction = Direction.LEFT
+                elif self.start_x > self.pos_x:
+                    self.facing_direction = Direction.RIGHT
+                if self.start_y < self.pos_y:
+                    self.facing_direction = Direction.UP
+                elif self.start_y > self.pos_y:
+                    self.facing_direction = Direction.DOWN
+                self.move()
+            return
+
+    def update_internal_state(self):
+        if self.battery < (0.05 * BATTERY_MAX):
+            self.charged = False
+        if self.charged and self.start_x != self.pos_x and self.start_y != self.pos_y and self.battery > 0:
+                self.battery -= 1
+        if not self.charged and self.start_x == self.pos_x and self.start_y == self.pos_y:
+            if self.battery < BATTERY_MAX:
+                self.battery += 5
+                if self.battery >= BATTERY_MAX:
+                    self.charged = True
+        
