@@ -9,6 +9,7 @@ import copy
 import math
 import random
 import sys
+from datetime import datetime
 
 import pygame
 import config
@@ -47,12 +48,14 @@ def main():
     pygame.display.set_caption(SIM_NAME)
 
     showStartScreen()
-    while True:
+    # while True:
+    for i in range(0, 10):
         runGame()
-        showGameOverScreen()
+        # showGameOverScreen()
 
 
 def runGame():
+    start_time = datetime.now()
 
     terrain = []
     for i in range(CELLWIDTH):
@@ -82,13 +85,15 @@ def runGame():
                 ruumba = Ruumba(i, j, len(ruumbas), random.choice(list(Direction)))
                 ruumbas.append(ruumba)
 
-    while True: # main game loop
+    start_dirt = get_terrain_dirt(terrain)
+
+    while (datetime.now() - start_time).total_seconds() < 100: # main game loop
         for event in pygame.event.get(): # event handling loop
-            get_direction(event)
+            get_keyboard(event)
 
         for ruumba in ruumbas:
             ruumba.random_move()
-            ruumba.interact_with(terrain[ruumba.pos_x][ruumba.pos_y])
+            ruumba.sense(**get_sense_cells(terrain, ruumba.pos_x, ruumba.pos_y))
             ruumba.update_internal_state()
 
         # Render
@@ -98,45 +103,51 @@ def runGame():
                 cell.render()
         for ruumba in ruumbas:
             ruumba.render()
+        drawTime(start_time)
         pygame.display.update()
         FPSCLOCK.tick(FPS)
 
+    end_dirt = get_terrain_dirt(terrain)
+    print("start_dirt: {}, end_dirt: {}".format(start_dirt, end_dirt))
+    print("Total percent collected: {}%".format((1 - (end_dirt/start_dirt)) * 100))
 
-def get_direction(event):
+
+def get_keyboard(event):
     if event.type == QUIT:
         terminate()
-    # elif event.type == KEYDOWN:
-    #     if event.key == K_LEFT and direction[0] != RIGHT:
-    #         direction[0] = LEFT
-    #     elif event.key == K_RIGHT and direction[0] != LEFT:
-    #         direction[0] = RIGHT
-    #     elif event.key == K_UP and direction[0] != DOWN:
-    #         direction[0] = UP
-    #     elif event.key == K_DOWN and direction[0] != UP:
-    #         direction[0] = DOWN
-    #     if event.key == K_a and direction[1] != RIGHT:
-    #         direction[1] = LEFT
-    #     elif event.key == K_d and direction[1] != LEFT:
-    #         direction[1] = RIGHT
-    #     elif event.key == K_w and direction[1] != DOWN:
-    #         direction[1] = UP
-    #     elif event.key == K_s and direction[0] != UP:
-    #         direction[1] = DOWN
-    #     if event.key == K_KP4 and direction[0] != RIGHT:
-    #         for i in range(len(direction)):
-    #             direction[i] = LEFT
-    #     elif event.key == K_KP6 and direction[0] != LEFT:
-    #         for i in range(len(direction)):
-    #             direction[i] = RIGHT
-    #     elif event.key == K_KP8 and direction[0] != DOWN:
-    #         for i in range(len(direction)):
-    #             direction[i] = UP
-    #     elif event.key == K_KP2 and direction[0] != UP:
-    #         for i in range(len(direction)):
-    #             direction[i] = DOWN
-    #     if event.key == K_ESCAPE:
-    #         terminate()
-    # return direction
+
+
+def get_sense_cells(terrain, pos_x, pos_y):
+    cells = {}
+    for cell in ["up_cell", "left_cell", "down_cell", "right_cell", "on_cell"]:
+        try:
+            x, y = get_xy(cell, pos_x, pos_y)
+            cells[cell] = terrain[x][y]
+        except IndexError:
+            cells[cell] = None
+    return cells
+
+
+def get_xy(string, pos_x, pos_y):
+    if "up" in string:
+        return (pos_x, pos_y - 1)
+    elif "left" in string:
+        return (pos_x - 1, pos_y)
+    elif "down" in string:
+        return (pos_x, pos_y + 1)
+    elif "right" in string:
+        return (pos_x + 1, pos_y)
+    else:
+        return (pos_x, pos_y)
+
+
+def get_terrain_dirt(terrain=[[]]):
+    dirt = 0
+    for row in terrain:
+        for cell in row:
+            if cell.cell_type == CellType.FLOOR:
+                dirt += cell.dirt
+    return dirt
 
 
 def get_rand_coords():
@@ -169,6 +180,14 @@ def drawScore(score, i):
     scoreRect = scoreSurf.get_rect()
     scoreRect.topleft = (WINDOWWIDTH - 120, 20 * i)
     DISPLAYSURF.blit(scoreSurf, scoreRect)
+
+
+def drawTime(start_time):
+    td = datetime.now() - start_time
+    timeSurf = BASICFONT.render('Time Elapsed: {}'.format(td.total_seconds()), True, BLACK)
+    timeRect = timeSurf.get_rect()
+    timeRect.topleft = (WINDOWWIDTH - 220, 20)
+    DISPLAYSURF.blit(timeSurf, timeRect)
 
 
 def drawGrid():

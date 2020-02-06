@@ -198,6 +198,28 @@ class MoveableCell(Cell):
     def move_right(self):
         self.pos_x = self.pos_x + 1
 
+    def turn_90(self, clockwise=True):
+        if self.facing_direction == Direction.UP:
+            if clockwise:
+                self.facing_direction = Direction.RIGHT
+            else:
+                self.facing_direction = Direction.LEFT
+        if self.facing_direction == Direction.DOWN:
+            if clockwise:
+                self.facing_direction = Direction.LEFT
+            else:
+                self.facing_direction = Direction.RIGHT
+        if self.facing_direction == Direction.LEFT:
+            if clockwise:
+                self.facing_direction = Direction.UP
+            else:
+                self.facing_direction = Direction.DOWN
+        if self.facing_direction == Direction.RIGHT:
+            if clockwise:
+                self.facing_direction = Direction.DOWN
+            else:
+                self.facing_direction = Direction.UP
+
     def undo_move(self):
         new_direction = random.choice(Direction.other_directions(self.facing_direction))
         self.facing_direction = Direction.opposite_direction(self.facing_direction)
@@ -206,6 +228,8 @@ class MoveableCell(Cell):
 
     def interact_with(self, cell=None):
         # This will have the cell passed in that we are "interacting with" so we can do things based on it
+        if cell is None:
+            import ipdb; ipdb.set_trace()
         if cell.cell_type == CellType.FURNITURE or cell.cell_type == CellType.STAIRS or cell.cell_type == CellType.WALL:
             self.undo_move()
 
@@ -226,6 +250,8 @@ class Ruumba(MoveableCell):
     start_x = 0
     start_y = 0
     charged = True
+    _prev_x = 0
+    _prev_y = 0
 
     def __init__(self, x, y, id, facing_direction, **kwargs):
         if 'cell_type' in kwargs:
@@ -240,6 +266,7 @@ class Ruumba(MoveableCell):
         if self.frame % self.speed == 0:
             self.set_speed(dirt=cell.dirt)
             cell.vacuum()
+
             # print("Cell vacuumed: DIRT={}".format(cell.dirt))
 
     def set_speed(self, dirt=0):
@@ -253,16 +280,16 @@ class Ruumba(MoveableCell):
             super().random_move()
         else:
             if self.start_x != self.pos_x or self.start_y != self.pos_y:
-                _start_x = self.pos_x
-                _start_y = self.pos_y
-                if self.start_x < self.pos_x:
-                    self.facing_direction = Direction.LEFT
-                elif self.start_x > self.pos_x:
-                    self.facing_direction = Direction.RIGHT
-                if self.start_y < self.pos_y:
-                    self.facing_direction = Direction.UP
-                elif self.start_y > self.pos_y:
-                    self.facing_direction = Direction.DOWN
+                if random.randint(0,1) > 0:
+                    if self.start_x < self.pos_x:
+                        self.facing_direction = Direction.LEFT
+                    elif self.start_x > self.pos_x:
+                        self.facing_direction = Direction.RIGHT
+                else:
+                    if self.start_y < self.pos_y:
+                        self.facing_direction = Direction.UP
+                    elif self.start_y > self.pos_y:
+                        self.facing_direction = Direction.DOWN
                 self.move()
             return
 
@@ -276,4 +303,21 @@ class Ruumba(MoveableCell):
                 self.battery += 5
                 if self.battery >= BATTERY_MAX:
                     self.charged = True
-        
+
+    # +++++++++++++++++++ BEGIN SENSE FUNCTIONS +++++++++++++++++++
+    def sense(self, **kwargs):
+        self.interact_with(kwargs["on_cell"])
+        facing_cell = self.sense_facing_cell(**kwargs)
+        if facing_cell is not None and (facing_cell.cell_type == CellType.FURNITURE or facing_cell.cell_type == CellType.WALL):
+            self.turn_90(clockwise=(random.randint(0, 1) > 0))
+
+    def sense_facing_cell(self, **kwargs):
+        if self.facing_direction == Direction.UP:
+            return kwargs["up_cell"]
+        elif self.facing_direction == Direction.DOWN:
+            return kwargs["down_cell"]
+        elif self.facing_direction == Direction.RIGHT:
+            return kwargs["right_cell"]
+        elif self.facing_direction == Direction.UP:
+            return kwargs["left_cell"]
+    # +++++++++++++++++++ END SENSE FUNCTIONS +++++++++++++++++++++
