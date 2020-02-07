@@ -13,10 +13,8 @@ from datetime import datetime
 
 import pygame
 import config
-from classes import CELL_COLORS, Cell, CellType, Direction, Ruumba, TerrainCell
+from classes import CELL_COLORS, Cell, CellType, Direction, Ruumba, TerrainCell, MoveableCell
 from pygame.locals import *
-# from render import (drawGrid, drawPressKeyMsg, drawScore, showGameOverScreen,
-#                     showStartScreen)
 from colors import *
 from utils import dump_room, load_room
 
@@ -31,9 +29,8 @@ RADIUS = config.RADIUS
 CELLWIDTH = config.CELLWIDTH
 CELLHEIGHT = config.CELLHEIGHT
 BGCOLOR = config.BGCOLOR
-HEAD = config.HEAD
-NUM_RUUMBAS = config.NUM_RUUMBAS
-DEBUG = config.DEBUG
+SIM_SECONDS = config.SIM_SECONDS
+NUM_MOVERS = config.NUM_MOVERS
 
 def main():
     global FPSCLOCK, DISPLAYSURF, BASICFONT
@@ -85,22 +82,46 @@ def runGame():
                 ruumba = Ruumba(i, j, len(ruumbas), random.choice(list(Direction)))
                 ruumbas.append(ruumba)
 
+    movers = []
+    for i in range(NUM_MOVERS):
+        cell = terrain[0][0]
+        while cell.cell_type != CellType.FLOOR:
+            cell = terrain[random.randint(1, len(terrain)-1)][random.randint(1, len(terrain[0])-1)]
+        movers.append(MoveableCell(cell.pos_x, cell.pos_y, i, random.choice(list(Direction)), cell_type=CellType.DOG))
+
     start_dirt = get_terrain_dirt(terrain)
 
-    while (datetime.now() - start_time).total_seconds() < 100: # main game loop
+    while (datetime.now() - start_time).total_seconds() < SIM_SECONDS: # main game loop
         for event in pygame.event.get(): # event handling loop
             get_keyboard(event)
+
+        for mover in movers:
+            mover.random_move()
+            mover.interact_with(terrain[mover.pos_x][mover.pos_y])
+            for ruumba in ruumbas:
+                if ruumba.pos_x == mover.pos_x and ruumba.pos_y == mover.pos_y:
+                    mover.interact_with(ruumba)
+            for m in movers:
+                if mover == m:
+                    continue
+                if m.pos_x == mover.pos_x and m.pos_y == mover.pos_y:
+                    mover.interact_with(m)
 
         for ruumba in ruumbas:
             ruumba.random_move()
             ruumba.sense(**get_sense_cells(terrain, ruumba.pos_x, ruumba.pos_y))
             ruumba.update_internal_state()
+            for mover in movers:
+                if ruumba.pos_x == mover.pos_x and ruumba.pos_y == mover.pos_y:
+                    ruumba.interact_with(mover)
 
         # Render
         DISPLAYSURF.fill(BGCOLOR)
         for l in terrain:
             for cell in l:
                 cell.render()
+        for mover in movers:
+            mover.render()
         for ruumba in ruumbas:
             ruumba.render()
         drawTime(start_time)
