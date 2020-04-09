@@ -14,7 +14,7 @@ from datetime import datetime
 
 import pygame
 import config
-from classes import CELL_COLORS, Cell, CellType, Direction, Ruumba, TerrainCell, MoveableCell
+from classes import CELL_COLORS, Cell, CellType, Direction, Predator, TerrainCell, MoveableCell
 from pygame.locals import *
 from colors import *
 from utils import dump_room, load_room
@@ -63,8 +63,8 @@ def runGame():
             if j == 0 or j == CELLHEIGHT-1 or i == 0 or i == CELLWIDTH-1:
                 if random.randint(0, 1000) > 970:
                     try:
-                        ruumbas[0].pos_x = i
-                        ruumbas[0].pos_y = j
+                        predators[0].pos_x = i
+                        predators[0].pos_y = j
                     except UnboundLocalError:
                         continue
             if random.randint(0, 1000) > 970:
@@ -76,12 +76,12 @@ def runGame():
     terrain = load_room()
 
     # Set a random start point.
-    ruumbas = []
+    predators = []
     for i in range(len(terrain)):
         for j in range(len(terrain[i])):
             if terrain[i][j].cell_type == CellType.CHARGER:
-                ruumba = Ruumba(i, j, len(ruumbas), random.choice(list(Direction)))
-                ruumbas.append(ruumba)
+                predator = Predator(i, j, len(predators), random.choice(list(Direction)))
+                predators.append(predator)
 
     # Generate movers
     movers = []
@@ -98,22 +98,22 @@ def runGame():
         for mover in movers:
             mover.random_move()
             mover.interact_with(terrain[mover.pos_x][mover.pos_y])
-            for ruumba in ruumbas:
-                if ruumba.pos_x == mover.pos_x and ruumba.pos_y == mover.pos_y:
-                    mover.interact_with(ruumba)
+            for predator in predators:
+                if predator.pos_x == mover.pos_x and predator.pos_y == mover.pos_y:
+                    mover.interact_with(predator)
             for m in movers:
                 if mover == m:
                     continue
                 if m.pos_x == mover.pos_x and m.pos_y == mover.pos_y:
                     mover.interact_with(m)
 
-        for ruumba in ruumbas:
-            ruumba.random_move()
-            ruumba.sense(**get_sense_cells(terrain, ruumba.pos_x, ruumba.pos_y))
-            ruumba.update_internal_state()
+        for predator in predators:
+            predator.random_move()
+            predator.sense(**get_sense_cells(terrain, predator.pos_x, predator.pos_y))
+            predator.update_internal_state()
             for mover in movers:
-                if ruumba.pos_x == mover.pos_x and ruumba.pos_y == mover.pos_y:
-                    ruumba.interact_with(mover)
+                if predator.pos_x == mover.pos_x and predator.pos_y == mover.pos_y:
+                    predator.interact_with(mover)
 
         # Render
         DISPLAYSURF.fill(BGCOLOR)
@@ -122,8 +122,8 @@ def runGame():
                 cell.render()
         for mover in movers:
             mover.render()
-        for ruumba in ruumbas:
-            ruumba.render()
+        for predator in predators:
+            predator.render()
         drawTime(start_time)
         pygame.display.update()
         FPSCLOCK.tick(FPS)

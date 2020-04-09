@@ -18,7 +18,6 @@ CELLHEIGHT = config.CELLHEIGHT
 BGCOLOR = config.BGCOLOR
 BATTERY_MAX = config.BATTERY_MAX
 DIRT_CHANCE = config.DIRT_CHANCE
-RUUMBA_REPEAT_VACUUM = config.RUUMBA_REPEAT_VACUUM
 NO_BATTERY = config.NO_BATTERY
 STAY_BY_WALL = config.STAY_BY_WALL
 
@@ -43,12 +42,12 @@ class CellType(Enum):
     FURNITURE = 'FURNITURE'
     FLOOR = 'FLOOR'
     CHARGER = 'CHARGER'
-    RUUMBA = 'RUUMBA'
+    PREDATOR = 'PREDATOR'
     IMPASSABLE = 'IMPASSABLE'
 
 
 CELL_COLORS = {
-    CellType.RUUMBA: LIGHTBLUE,
+    CellType.PREDATOR: LIGHTBLUE,
     CellType.FLOOR: BLACK,
     CellType.DOG: DARKGREEN,
 }
@@ -138,8 +137,6 @@ class MoveableCell(Cell):
             if random.randint(0, 6) == 5:
                 self.facing_direction = random.choice(list(Direction))
             self.move()
-        # if self.hits_edge():
-        #     self.undo_move()
         self.frame += 1
 
     def move(self):
@@ -206,25 +203,18 @@ class MoveableCell(Cell):
         if cell.cell_type not in [CellType.FLOOR]:
             self.undo_move()
 
-    # def hits_edge(self):
-    #     global CELLWIDTH, CELLHEIGHT
-    #     return self.pos_x == -1 or self.pos_x == CELLWIDTH or self.pos_y == -1 or self.pos_y == CELLHEIGHT
-
     def hits_object(self, obj):
         return self.pos_x == obj.pos_x and self.pos_y == obj.pos_y
 
-    def update_internal_state(self):
-        pass
 
-
-class Ruumba(MoveableCell):
+class Predator(MoveableCell):
     start_x = 0
     start_y = 0
     move_queue = []
 
     def __init__(self, x, y, id, facing_direction, **kwargs):
-        self.cell_type = CellType.RUUMBA
-        super().__init__(x, y, id, facing_direction, cell_type=CellType.RUUMBA, **kwargs)
+        self.cell_type = CellType.PREDATOR
+        super().__init__(x, y, id, facing_direction, cell_type=CellType.PREDATOR, **kwargs)
         self.start_x = x
         self.start_y = y
 
