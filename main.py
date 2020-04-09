@@ -1,9 +1,10 @@
-# (Originally) Ruumbay (a Nibbles clone)
-# Now a roomba simulator!
+# (Originally) wormy (a Nibbles clone)
+# Then a roomba simulator!
+# Now a predator prey simulation!
 # By Al Sweigart al@inventwithpython.com
 # http://inventwithpython.com/pygame
 # Released under a "Simplified BSD" license
-# Modified by Chris Merkley for CS 5110
+# Modified by Chris Merkley - Zac Johnson for CS 5110
 
 import copy
 import math
@@ -31,6 +32,7 @@ CELLHEIGHT = config.CELLHEIGHT
 BGCOLOR = config.BGCOLOR
 SIM_SECONDS = config.SIM_SECONDS
 NUM_MOVERS = config.NUM_MOVERS
+
 
 def main():
     global FPSCLOCK, DISPLAYSURF, BASICFONT
@@ -60,14 +62,13 @@ def runGame():
         for j in range(CELLHEIGHT):
             if j == 0 or j == CELLHEIGHT-1 or i == 0 or i == CELLWIDTH-1:
                 if random.randint(0, 1000) > 970:
-                    add.append(TerrainCell(i, j, CellType.CHARGER))
                     try:
                         ruumbas[0].pos_x = i
                         ruumbas[0].pos_y = j
                     except UnboundLocalError:
                         continue
             if random.randint(0, 1000) > 970:
-                add.append(TerrainCell(i, j, random.choice([CellType.FLOOR, CellType.FURNITURE, CellType.STAIRS])))
+                add.append(TerrainCell(i, j, CellType.FLOOR))
                 continue
             add.append(TerrainCell(i, j, CellType.FLOOR))
         terrain.append(add)
@@ -82,14 +83,13 @@ def runGame():
                 ruumba = Ruumba(i, j, len(ruumbas), random.choice(list(Direction)))
                 ruumbas.append(ruumba)
 
+    # Generate movers
     movers = []
     for i in range(NUM_MOVERS):
         cell = terrain[0][0]
         while cell.cell_type != CellType.FLOOR:
             cell = terrain[random.randint(1, len(terrain)-1)][random.randint(1, len(terrain[0])-1)]
         movers.append(MoveableCell(cell.pos_x, cell.pos_y, i, random.choice(list(Direction)), cell_type=CellType.DOG))
-
-    start_dirt = get_terrain_dirt(terrain)
 
     while (datetime.now() - start_time).total_seconds() < SIM_SECONDS: # main game loop
         for event in pygame.event.get(): # event handling loop
@@ -128,10 +128,6 @@ def runGame():
         pygame.display.update()
         FPSCLOCK.tick(FPS)
 
-    end_dirt = get_terrain_dirt(terrain)
-    print("start_dirt: {}, end_dirt: {}".format(start_dirt, end_dirt))
-    print("Total percent collected: {}%".format((1 - (end_dirt/start_dirt)) * 100))
-
 
 def get_keyboard(event):
     if event.type == QUIT:
@@ -162,15 +158,6 @@ def get_xy(string, pos_x, pos_y):
         return (pos_x, pos_y)
 
 
-def get_terrain_dirt(terrain=[[]]):
-    dirt = 0
-    for row in terrain:
-        for cell in row:
-            if cell.cell_type == CellType.FLOOR:
-                dirt += cell.dirt
-    return dirt
-
-
 def get_rand_coords():
     return random.randint(5, CELLWIDTH - 6), random.randint(5, CELLHEIGHT - 6)
 
@@ -194,6 +181,7 @@ def terminate():
 
 def getRandomLocation():
     return {'x': random.randint(0, CELLWIDTH - 1), 'y': random.randint(0, CELLHEIGHT - 1)}
+
 
 def drawScore(score, i):
     i = i+1
