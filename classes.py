@@ -38,7 +38,7 @@ BGCOLOR = BLACK
 class CellType(Enum):
     STAIRS = 'STAIRS'
     WALL = 'WALL'
-    DOG = 'DOG'
+    PREY = 'PREY'
     FURNITURE = 'FURNITURE'
     FLOOR = 'FLOOR'
     CHARGER = 'CHARGER'
@@ -47,9 +47,9 @@ class CellType(Enum):
 
 
 CELL_COLORS = {
-    CellType.PREDATOR: LIGHTBLUE,
+    CellType.PREDATOR: RED,
     CellType.FLOOR: BLACK,
-    CellType.DOG: DARKGREEN,
+    CellType.PREY: DARKGREEN,
 }
 
 
@@ -213,7 +213,8 @@ class Predator(MoveableCell):
     move_queue = []
 
     def __init__(self, x, y, id, facing_direction, **kwargs):
-        self.cell_type = CellType.PREDATOR
+        if kwargs.get("cell_type"):
+            kwargs.pop("cell_type")
         super().__init__(x, y, id, facing_direction, cell_type=CellType.PREDATOR, **kwargs)
         self.start_x = x
         self.start_y = y
@@ -235,9 +236,10 @@ class Predator(MoveableCell):
             if random.randint(0, 6) == 6:
                 self.facing_direction = random.choice(list(Direction))
             self.move()
-        if self.hits_edge():
-            self.undo_move()
         self.frame += 1
+
+    def update_internal_state(self):
+        pass
 
     # +++++++++++++++++++ BEGIN SENSE FUNCTIONS +++++++++++++++++++
     def sense(self, **kwargs):

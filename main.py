@@ -75,21 +75,10 @@ def runGame():
 
     terrain = load_room()
 
-    # Set a random start point.
-    predators = []
-    for i in range(len(terrain)):
-        for j in range(len(terrain[i])):
-            if terrain[i][j].cell_type == CellType.CHARGER:
-                predator = Predator(i, j, len(predators), random.choice(list(Direction)))
-                predators.append(predator)
+    #generate predators
+    predators = gen_predators(terrain, CellType.PREDATOR, number=4)
 
-    # Generate movers
-    movers = []
-    for i in range(NUM_MOVERS):
-        cell = terrain[0][0]
-        while cell.cell_type != CellType.FLOOR:
-            cell = terrain[random.randint(1, len(terrain)-1)][random.randint(1, len(terrain[0])-1)]
-        movers.append(MoveableCell(cell.pos_x, cell.pos_y, i, random.choice(list(Direction)), cell_type=CellType.DOG))
+    movers = gen_movers(terrain, CellType.PREY)
 
     while (datetime.now() - start_time).total_seconds() < SIM_SECONDS: # main game loop
         for event in pygame.event.get(): # event handling loop
@@ -127,6 +116,28 @@ def runGame():
         drawTime(start_time)
         pygame.display.update()
         FPSCLOCK.tick(FPS)
+
+
+def gen_movers(terrain, cell_type, number=1):
+    global CELLWIDTH, CELLHEIGHT
+    movers = []
+    for i in range(number):
+        cell = terrain[random.randint(1, CELLWIDTH-1)][random.randint(1, CELLHEIGHT-1)]
+        while cell.cell_type != CellType.FLOOR:
+            cell = terrain[random.randint(1, CELLWIDTH-1)][random.randint(1, CELLHEIGHT-1)]
+        movers.append(MoveableCell(cell.pos_x, cell.pos_y, i, random.choice(list(Direction)), cell_type=cell_type))
+    return movers
+
+
+def gen_predators(terrain, cell_type, number=1):
+    global CELLWIDTH, CELLHEIGHT
+    movers = []
+    for i in range(number):
+        cell = terrain[random.randint(1, CELLWIDTH-1)][random.randint(1, CELLHEIGHT-1)]
+        while cell.cell_type != CellType.FLOOR:
+            cell = terrain[random.randint(1, CELLWIDTH-1)][random.randint(1, CELLHEIGHT-1)]
+        movers.append(Predator(cell.pos_x, cell.pos_y, i, random.choice(list(Direction)), cell_type=cell_type))
+    return movers
 
 
 def get_keyboard(event):
