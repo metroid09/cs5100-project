@@ -16,10 +16,7 @@ RADIUS = config.RADIUS
 CELLWIDTH = config.CELLWIDTH
 CELLHEIGHT = config.CELLHEIGHT
 BGCOLOR = config.BGCOLOR
-BATTERY_MAX = config.BATTERY_MAX
-DIRT_CHANCE = config.DIRT_CHANCE
-NO_BATTERY = config.NO_BATTERY
-STAY_BY_WALL = config.STAY_BY_WALL
+MESSAGE_LENGTH = config.MESSAGE_LENGTH
 
 #             R    G    B
 WHITE     = (255, 255, 255)
@@ -51,6 +48,11 @@ CELL_COLORS = {
     CellType.FLOOR: BLACK,
     CellType.PREY: DARKGREEN,
 }
+
+
+class MessageBoard(object):
+    message = [0 for i in range(MESSAGE_LENGTH)]
+    pass
 
 
 class Direction(Enum):
@@ -118,13 +120,17 @@ class MoveableCell(Cell):
     id = None
     facing_direction = None
     # Speed is measured in frames / cell (number of cells moved in x frames)
-    speed = 4
+    speed = 1
     frame = 1
-    hit_bottom = True
+    last_x = 0
+    last_y = 0
+    move_back = False
 
     def __init__(self, x, y, id, facing_direction, cell_type=None, color=None, **kwargs):
         super().__init__(x, y, cell_type=cell_type, color=color, **kwargs)
         self.id = id
+        self.last_x = x
+        self.last_y = y
         if type(facing_direction) is Direction:
             self.facing_direction = facing_direction
         else:
@@ -132,14 +138,21 @@ class MoveableCell(Cell):
         self.next_direction = facing_direction
 
     def random_move(self):
-        if self.frame % self.speed == 0:
-            self.frame = 1
-            if random.randint(0, 6) == 5:
-                self.facing_direction = random.choice(list(Direction))
-            self.move()
-        self.frame += 1
+        self.facing_direction = random.choice(list(Direction))
+        self.move()
+
+    def needs_move_back(self):
+        self.move_back = True
+
+    def try_revert_move(self):
+        if self.move_back:
+            self.pos_x = self.last_x
+            self.pos_y = self.last_y
+            self.move_back = False
 
     def move(self):
+        self.last_x = self.pos_x
+        self.last_y = self.pos_y
         if self.facing_direction == Direction.UP:
             self.move_up()
         if self.facing_direction == Direction.DOWN:
@@ -231,12 +244,8 @@ class Predator(MoveableCell):
         self.speed = 4 # Set speed to n frame/cell
 
     def random_move(self):
-        if self.frame % self.speed == 0:
-            self.frame = 1
-            if random.randint(0, 6) == 6:
-                self.facing_direction = random.choice(list(Direction))
-            self.move()
-        self.frame += 1
+        self.facing_direction = random.choice(list(Direction))
+        self.move()
 
     def update_internal_state(self):
         pass

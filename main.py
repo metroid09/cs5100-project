@@ -30,8 +30,7 @@ RADIUS = config.RADIUS
 CELLWIDTH = config.CELLWIDTH
 CELLHEIGHT = config.CELLHEIGHT
 BGCOLOR = config.BGCOLOR
-SIM_SECONDS = config.SIM_SECONDS
-NUM_MOVERS = config.NUM_MOVERS
+SIM_TURNS = config.SIM_TURNS
 
 
 def main():
@@ -47,10 +46,9 @@ def main():
     pygame.display.set_caption(SIM_NAME)
 
     showStartScreen()
-    # while True:
-    for i in range(0, 10):
+    while True:
         runGame()
-        # showGameOverScreen()
+        showGameOverScreen()
 
 
 def runGame():
@@ -80,7 +78,10 @@ def runGame():
 
     movers = gen_movers(terrain, CellType.PREY)
 
-    while (datetime.now() - start_time).total_seconds() < SIM_SECONDS: # main game loop
+    sim_turn = 0
+
+    while sim_turn < SIM_TURNS: # main game loop
+        sim_turn += 1
         for event in pygame.event.get(): # event handling loop
             get_keyboard(event)
 
@@ -102,7 +103,13 @@ def runGame():
             predator.update_internal_state()
             for mover in movers:
                 if predator.pos_x == mover.pos_x and predator.pos_y == mover.pos_y:
+                    mover.needs_move_back()
+                    predator.needs_move_back()
+                    predator.try_revert_move()
                     predator.interact_with(mover)
+
+        for mover in movers:
+            mover.try_revert_move()
 
         # Render
         DISPLAYSURF.fill(BGCOLOR)
