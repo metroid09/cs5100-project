@@ -1,3 +1,4 @@
+import math
 import random
 from enum import Enum
 
@@ -17,6 +18,9 @@ CELLWIDTH = config.CELLWIDTH
 CELLHEIGHT = config.CELLHEIGHT
 BGCOLOR = config.BGCOLOR
 MESSAGE_LENGTH = config.MESSAGE_LENGTH
+N_RANGE = config.N_RANGE
+BEARINGS = config.BEARINGS
+N_BEARING = config.N_BEARING
 
 #             R    G    B
 WHITE     = (255, 255, 255)
@@ -49,12 +53,6 @@ CELL_COLORS = {
     CellType.PREY: DARKGREEN,
 }
 
-
-class MessageBoard(object):
-    message = [0 for i in range(MESSAGE_LENGTH)]
-    pass
-
-
 class Direction(Enum):
     UP = 'UP',
     DOWN = 'DOWN',
@@ -80,6 +78,50 @@ class Direction(Enum):
                 continue
             directions.append(d)
         return directions
+
+
+def degree_to_bearing(x):
+    if x >= 337.5 and x < 22.5:
+        return "N"
+    elif x >= 22.5 and x < 67.5:
+        return "NE"
+    elif x >= 67.5 and x < 112.5:
+        return "E"
+    elif x >= 112.5 and x < 157.5:
+        return "SE"
+    elif x >= 157.5 and x < 202.5:
+        return "S"
+    elif x >= 202.5 and x < 247.5:
+        return "SW"
+    elif x >= 247.5 and x < 292.5:
+        return "W"
+    else:
+        return "NW"
+
+
+def manhattan_to_string(dist):
+    if dist < 1:
+        return "0001"
+    elif dist < 2:
+        return "0010"
+    elif dist < 3:
+        return "0100"
+    else:
+        return "1000"
+
+
+def direction_to_string(dir: Direction):
+    if dir == Direction.UP:
+        return "00"
+    elif dir == Direction.LEFT:
+        return "01"
+    elif dir == Direction.DOWN:
+        return "10"
+    else:
+        return "11"
+
+
+message_board = ["0" for i in range(MESSAGE_LENGTH)]
 
 
 class Cell(object):
@@ -202,81 +244,83 @@ class MoveableCell(Cell):
         elif self.facing_direction in [Direction.RIGHT, Direction.LEFT]:
             return Direction.UP, Direction.DOWN
 
-    def undo_move(self):
-        new_direction = random.choice(Direction.other_directions(self.facing_direction))
-        self.facing_direction = Direction.opposite_direction(self.facing_direction)
-        self.move()
-        self.facing_direction = new_direction
-
-    def interact_with(self, cell=None):
-        # This will have the cell passed in that we are "interacting with" so we can do things based on it
-        if cell is None:
-            import ipdb; ipdb.set_trace()
-            return
-        if cell.cell_type not in [CellType.FLOOR]:
-            self.undo_move()
-
-    def hits_object(self, obj):
-        return self.pos_x == obj.pos_x and self.pos_y == obj.pos_y
-
 
 class Predator(MoveableCell):
     start_x = 0
     start_y = 0
     move_queue = []
+    manhattan_str = ''
+    bearing_str = ''
+    last_msg = ''
 
-    def __init__(self, x, y, id, facing_direction, **kwargs):
+
+    """
+    The length c of the chromosome string is a function of the
+    number of possible states N observable by the predator based
+    on its sensory information, and the number of actions b.
+
+    The paper isn't very helpful, think of it this way instead. It's a direct map from input -> output,
+    where any input state + moves that can be made are mapped to a random output. That way we can use the
+    genetic algorithm on the output and evolve better outputs.
+
+    For instance, if we have 4 inputs and our message length is 1
+    input -> message sent
+    0000 -> 1 NORTH
+    0001 -> 1 WEST
+    0010 -> 0 WEST
+    0011 -> 1 SOUTH
+    0100 -> 0 NORTH
+    0101 -> 1 EAST
+    0110 -> 1 NORT
+    0111 -> 1 WEST
+    1000 -> 0 EAST
+    1001 -> 1 EAST
+    1010 -> 1 SOUTH
+    1011 -> 1 WEST
+    1100 -> 0 NORTH
+    1101 -> 1 SOUTH
+    1110 -> 0 WEST
+    1111 -> 1 EAST
+
+    then we do that with 10 random predators, the best predators are used with crossover to breed the next set of predators with the genetic algorithm and 2 crossover breeding
+    """
+    CHROMOSOME_LEN = (2 + MESSAGE_LENGTH) * N_RANGE * (N_BEARING * 2**(MESSAGE_LENGTH * 4))
+    chromosome = [0 for x in range(CHROMOSOME_LEN)]
+
+    def __init__(self, x, y, id, facing_direction, chromosome=[], **kwargs):
+        if not kwargs.get('chromosome'):
+            self.chromosome = [random.choice([0, 1]) for x in range(self.CHROMOSOME_LEN)]
+        else:
+            self.chromosome = [bool(int(i)) for i in kwargs.get('chromosome')] # True if 1, False if 0
         if kwargs.get("cell_type"):
             kwargs.pop("cell_type")
         super().__init__(x, y, id, facing_direction, cell_type=CellType.PREDATOR, **kwargs)
         self.start_x = x
         self.start_y = y
 
-    def interact_with(self, cell=None):
-        super().interact_with(cell)
-        if cell is None:
-            return
-
-    def set_speed(self, dirt=0):
-        if dirt > 0:
-            self.speed = 8 # Set speed to n frames/cell
-            return
-        self.speed = 4 # Set speed to n frame/cell
-
     def random_move(self):
         self.facing_direction = random.choice(list(Direction))
         self.move()
 
     def update_internal_state(self):
+        global message_board
+        state_str = (
+            direction_to_string(self.facing_direction)
+            + self.last_msg
+            + self.manhattan_str
+            + self.bearing_str
+            + "".join(message_board)
+        )
         pass
 
-    # +++++++++++++++++++ BEGIN SENSE FUNCTIONS +++++++++++++++++++
-    def sense(self, **kwargs):
-        facing_cell = self.sense_facing_cell(**kwargs)
-        side1, side2 = self.get_side_directions()
-        cell_type = CellType.WALL
-        try:
-            if side1 in [Direction.UP, Direction.DOWN]:
-                if self.cell_is_x('up_cell', cell_type, kwargs) or self.cell_is_x('down_cell', cell_type, kwargs):
-                    self.next_to_wall = True
-            if side1 in [Direction.LEFT, Direction.RIGHT]:
-                if self.cell_is_x('left_cell', cell_type, kwargs) or self.cell_is_x('right_cell', cell_type, kwargs):
-                    self.next_to_wall = True
-        except AttributeError:
-            import ipdb; ipdb.set_trace()
-
-    def cell_is_x(self, cell, cell_type, kwargs):
-        if cell in kwargs and kwargs[cell] is not None and kwargs[cell].cell_type == cell_type:
-            return True
-        return False
-
-    def sense_facing_cell(self, **kwargs):
-        if self.facing_direction == Direction.UP:
-            return kwargs["up_cell"]
-        elif self.facing_direction == Direction.DOWN:
-            return kwargs["down_cell"]
-        elif self.facing_direction == Direction.RIGHT:
-            return kwargs["right_cell"]
-        elif self.facing_direction == Direction.UP:
-            return kwargs["left_cell"]
-    # +++++++++++++++++++ END SENSE FUNCTIONS +++++++++++++++++++++
+    def sense(self, mover: MoveableCell):
+        manhattan_dist = abs(self.pos_x - mover.pos_x) + abs(self.pos_y - mover.pos_y)
+        self.manhattan_str = manhattan_to_string(manhattan_dist)
+        y = mover.pos_y - self.pos_y
+        x = mover.pos_x - self.pos_x
+        b = math.degrees(math.atan2(y, x))
+        if b < 0:
+            b += 360
+        bearing = degree_to_bearing(b)
+        self.bearing_str = BEARINGS[bearing]
+        self.update_internal_state()

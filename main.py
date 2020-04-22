@@ -6,7 +6,6 @@
 # Released under a "Simplified BSD" license
 # Modified by Chris Merkley - Zac Johnson for CS 5110
 
-import copy
 import math
 import random
 import sys
@@ -79,37 +78,30 @@ def runGame():
     movers = gen_movers(terrain, CellType.PREY)
 
     sim_turn = 0
-
     while sim_turn < SIM_TURNS: # main game loop
-        sim_turn += 1
         for event in pygame.event.get(): # event handling loop
             get_keyboard(event)
 
         for mover in movers:
             mover.random_move()
-            mover.interact_with(terrain[mover.pos_x][mover.pos_y])
             for predator in predators:
                 if predator.pos_x == mover.pos_x and predator.pos_y == mover.pos_y:
-                    mover.interact_with(predator)
-            for m in movers:
-                if mover == m:
-                    continue
-                if m.pos_x == mover.pos_x and m.pos_y == mover.pos_y:
-                    mover.interact_with(m)
+                    mover.needs_move_back()
+                    mover.try_revert_move()
 
         for predator in predators:
             predator.random_move()
-            predator.sense(**get_sense_cells(terrain, predator.pos_x, predator.pos_y))
-            predator.update_internal_state()
-            for mover in movers:
-                if predator.pos_x == mover.pos_x and predator.pos_y == mover.pos_y:
-                    mover.needs_move_back()
+            predator.sense(movers[0])
+            for p in predators:
+                if predator != p and predator.pos_x == p.pos_x and predator.pos_y == p.pos_y:
                     predator.needs_move_back()
                     predator.try_revert_move()
-                    predator.interact_with(mover)
-
-        for mover in movers:
-            mover.try_revert_move()
+                    continue
+            for mover in movers:
+                if predator.pos_x == mover.pos_x and predator.pos_y == mover.pos_y:
+                    predator.needs_move_back()
+                    predator.try_revert_move()
+                    continue
 
         # Render
         DISPLAYSURF.fill(BGCOLOR)
@@ -120,9 +112,9 @@ def runGame():
             mover.render()
         for predator in predators:
             predator.render()
-        drawTime(start_time)
         pygame.display.update()
         FPSCLOCK.tick(FPS)
+        sim_turn += 1
 
 
 def gen_movers(terrain, cell_type, number=1):
@@ -150,30 +142,6 @@ def gen_predators(terrain, cell_type, number=1):
 def get_keyboard(event):
     if event.type == QUIT:
         terminate()
-
-
-def get_sense_cells(terrain, pos_x, pos_y):
-    cells = {}
-    for cell in ["up_cell", "left_cell", "down_cell", "right_cell", "on_cell"]:
-        try:
-            x, y = get_xy(cell, pos_x, pos_y)
-            cells[cell] = terrain[x][y]
-        except IndexError:
-            cells[cell] = None
-    return cells
-
-
-def get_xy(string, pos_x, pos_y):
-    if "up" in string:
-        return (pos_x, pos_y - 1)
-    elif "left" in string:
-        return (pos_x - 1, pos_y)
-    elif "down" in string:
-        return (pos_x, pos_y + 1)
-    elif "right" in string:
-        return (pos_x + 1, pos_y)
-    else:
-        return (pos_x, pos_y)
 
 
 def get_rand_coords():
@@ -207,14 +175,6 @@ def drawScore(score, i):
     scoreRect = scoreSurf.get_rect()
     scoreRect.topleft = (WINDOWWIDTH - 120, 20 * i)
     DISPLAYSURF.blit(scoreSurf, scoreRect)
-
-
-def drawTime(start_time):
-    td = datetime.now() - start_time
-    timeSurf = BASICFONT.render('Time Elapsed: {}'.format(td.total_seconds()), True, BLACK)
-    timeRect = timeSurf.get_rect()
-    timeRect.topleft = (WINDOWWIDTH - 220, 20)
-    DISPLAYSURF.blit(timeSurf, timeRect)
 
 
 def drawGrid():
