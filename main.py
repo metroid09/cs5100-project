@@ -30,6 +30,7 @@ CELLWIDTH = config.CELLWIDTH
 CELLHEIGHT = config.CELLHEIGHT
 BGCOLOR = config.BGCOLOR
 SIM_TURNS = config.SIM_TURNS
+CHROMOSOME_LEN = config.CHROMOSOME_LEN
 
 
 def main():
@@ -45,43 +46,64 @@ def main():
     pygame.display.set_caption(SIM_NAME)
 
     showStartScreen()
-    while True:
-        runGame()
-        showGameOverScreen()
+    chromo_map = {
+        # fitness -> chromo_string
+    }
+    for t in range(20):
+        for run in range(100):
+            # print("+++++++++++++++++++++++++++++++++++++++")
+            # print("Running scenario {}".format(run))
+            n_max = 5000
+            num_scenarios = 100
+            num_captures = 0
+            num_blocks = 0
+            dist_avg = 100
+            time_to_capture = []
+            random.seed(None, version=2)
+            chromo_str = "".join([random.choice(["0", "1"]) for x in range(CHROMOSOME_LEN)])
+            n_s = num_scenarios
+            while n_s > 0:
+                result = runGame(chromo_str)
+                if result["captured"]:
+                    num_captures += 1
+                num_blocks += result["num_blocks"]
+                dist_avg = (dist_avg + result["dist_avg"]) / 2
+                time_to_capture.append(result["num_turns"])
+                # showGameOverScreen()
+                n_s -= 1
+            fitness = calc_fitness(
+                n_max=n_max,
+                n_scenarios=num_scenarios,
+                n_captures=num_captures,
+                d_avg=dist_avg,
+                n_blocks=num_blocks,
+                time_to_capture=time_to_capture
+            )
+            # print("Fitness of run {} was {}".format(run, fitness))
+            # print("+++++++++++++++++++++++++++++++++++++++")
+            chromo_map[chromo_str] = fitness
+
+        print("+++++++++++++++++++ FINAL ++++++++++++++++++++")
+        best = ("", 0)
+        for key, value in chromo_map.items():
+            if value > best[1]:
+                best = (key, value)
+        print("Best score was string {}".format(best[0]))
+        print("Final score {}".format(best[1]))
+        print("+++++++++++++++++++ FINAL ++++++++++++++++++++")
 
 
-def runGame():
-    start_time = datetime.now()
-
-    terrain = []
-    for i in range(CELLWIDTH):
-        add = []
-        for j in range(CELLHEIGHT):
-            if j == 0 or j == CELLHEIGHT-1 or i == 0 or i == CELLWIDTH-1:
-                if random.randint(0, 1000) > 970:
-                    try:
-                        predators[0].pos_x = i
-                        predators[0].pos_y = j
-                    except UnboundLocalError:
-                        continue
-            if random.randint(0, 1000) > 970:
-                add.append(TerrainCell(i, j, CellType.FLOOR))
-                continue
-            add.append(TerrainCell(i, j, CellType.FLOOR))
-        terrain.append(add)
-
+def runGame(chromo_str):
+    global last_message_board, message_board
     terrain = load_room()
 
-    #generate predators
-    predators = gen_predators(terrain, CellType.PREDATOR, number=4)
-
-    for p in predators:
-        print(p.id)
-        print(p.get_chromosome_str())
+    predators = gen_predators(terrain, CellType.PREDATOR, number=4, chromo_str=chromo_str)
 
     movers = gen_movers(terrain, CellType.PREY)
 
     sim_turn = 0
+    num_blocks = 0
+    dist_avg = 100
     while sim_turn < SIM_TURNS: # main game loop
         for event in pygame.event.get(): # event handling loop
             get_keyboard(event)
@@ -92,7 +114,9 @@ def runGame():
                 if predator.pos_x == mover.pos_x and predator.pos_y == mover.pos_y:
                     mover.needs_move_back()
                     mover.try_revert_move()
+                    num_blocks = num_blocks + 1
 
+        pred_dist = 0
         for predator in predators:
             predator.random_move()
             predator.sense(movers[0])
@@ -106,19 +130,50 @@ def runGame():
                     predator.needs_move_back()
                     predator.try_revert_move()
                     continue
+            pred_dist += predator.get_distance(movers[0])
+        pred_dist = pred_dist / len(predators)
+        dist_avg = (dist_avg + pred_dist) / 2
 
-        # Render
-        DISPLAYSURF.fill(BGCOLOR)
-        for l in terrain:
-            for cell in l:
-                cell.render()
         for mover in movers:
-            mover.render()
-        for predator in predators:
-            predator.render()
-        pygame.display.update()
-        FPSCLOCK.tick(FPS)
+            if mover.surrounded(predators):
+                return {
+                    "captured": True,
+                    "num_turns": sim_turn,
+                    "num_blocks": num_blocks,
+                    "dist_avg": dist_avg,
+                    "chromo_str": chromo_str,
+                }
+
+        # # Render
+        # DISPLAYSURF.fill(BGCOLOR)
+        # for l in terrain:
+        #     for cell in l:
+        #         cell.render()
+        # for mover in movers:
+        #     mover.render()
+        # for predator in predators:
+        #     predator.render()
+        # pygame.display.update()
+        # FPSCLOCK.tick(FPS)
+        last_message_board = message_board
         sim_turn += 1
+
+    return {
+        "captured": False,
+        "num_turns": sim_turn,
+        "num_blocks": num_blocks,
+        "dist_avg": dist_avg,
+        "chromo_str": chromo_str,
+    }
+
+
+def calc_fitness(n_max=5000, n_scenarios=100, n_captures=0, d_avg=0, n_blocks=0, time_to_capture=[]):
+    if n_captures == 0:
+        return (0.4)/(d_avg + (0.6 * (n_blocks / (n_max * n_scenarios))))
+    elif n_captures < n_scenarios:
+        return n_captures
+    else:
+        return n_scenarios + ((10000 * n_scenarios)/sum(time_to_capture))
 
 
 def gen_movers(terrain, cell_type, number=1):
@@ -132,14 +187,14 @@ def gen_movers(terrain, cell_type, number=1):
     return movers
 
 
-def gen_predators(terrain, cell_type, number=1):
+def gen_predators(terrain, cell_type, number=1, chromo_str=""):
     global CELLWIDTH, CELLHEIGHT
     movers = []
     for i in range(number):
         cell = terrain[random.randint(1, CELLWIDTH-1)][random.randint(1, CELLHEIGHT-1)]
         while cell.cell_type != CellType.FLOOR:
             cell = terrain[random.randint(1, CELLWIDTH-1)][random.randint(1, CELLHEIGHT-1)]
-        movers.append(Predator(cell.pos_x, cell.pos_y, i, random.choice(list(Direction)), cell_type=cell_type))
+        movers.append(Predator(cell.pos_x, cell.pos_y, i, random.choice(list(Direction)), cell_type=cell_type, chromosome=chromo_str))
     return movers
 
 
