@@ -51,16 +51,16 @@ def main():
     }
     for t in range(20):
         for run in range(100):
-            # print("+++++++++++++++++++++++++++++++++++++++")
-            # print("Running scenario {}".format(run))
+            print("+++++++++++++++++++++++++++++++++++++++")
+            print("Running scenario {}".format(run))
             n_max = 5000
             num_scenarios = 100
             num_captures = 0
             num_blocks = 0
             dist_avg = 100
             time_to_capture = []
-            random.seed(None, version=2)
-            chromo_str = "".join([random.choice(["0", "1"]) for x in range(CHROMOSOME_LEN)])
+            random.seed(a=None, version=2)
+            chromo_str = "".join([str(int(random.getrandbits(1))) for x in range(CHROMOSOME_LEN)])
             n_s = num_scenarios
             while n_s > 0:
                 result = runGame(chromo_str)
@@ -79,8 +79,8 @@ def main():
                 n_blocks=num_blocks,
                 time_to_capture=time_to_capture
             )
-            # print("Fitness of run {} was {}".format(run, fitness))
-            # print("+++++++++++++++++++++++++++++++++++++++")
+            print("Fitness of run {} was {}".format(run, fitness))
+            print("+++++++++++++++++++++++++++++++++++++++")
             chromo_map[chromo_str] = fitness
 
         print("+++++++++++++++++++ FINAL ++++++++++++++++++++")
