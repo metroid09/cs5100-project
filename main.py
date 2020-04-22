@@ -13,7 +13,7 @@ from datetime import datetime
 
 import pygame
 import config
-from classes import CELL_COLORS, Cell, CellType, Direction, Predator, TerrainCell, MoveableCell
+from classes import CELL_COLORS, Cell, CellType, Direction, Predator, TerrainCell, MoveableCell, message_board, last_message_board
 from pygame.locals import *
 from colors import *
 from utils import dump_room, load_room
