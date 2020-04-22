@@ -20,6 +20,8 @@ CELLWIDTH = int(WINDOWWIDTH / CELLSIZE)
 CELLHEIGHT = int(WINDOWHEIGHT / CELLSIZE)
 MESSAGE_LENGTH = 1 # Known as l in the paper
 N_RANGE = 4
+
+
 BEARINGS = {
     'N':    "000",
     'NE':   "001",
@@ -30,6 +32,7 @@ BEARINGS = {
     'W':    "110",
     'NW':   "111",
 }
+
 N_BEARING = len(BEARINGS)
 
 DIRECTION_STRS = [
@@ -39,10 +42,7 @@ DIRECTION_STRS = [
     "11",
 ]
 
-MSG_STRS = [
-    "0",
-    "1",
-]
+MSG_STRS = ["".join(p) for p in product(["0", "1"], repeat=MESSAGE_LENGTH)]
 
 DIST_STRS = [
     "00",
@@ -87,7 +87,10 @@ for a, b, c, d, e in product(DIRECTION_STRS, MSG_STRS, DIST_STRS, BEARING_STRS, 
     ALL_POSSIBLE_STRINGS.add(a+b+c+d+e)
 
 print(len(ALL_POSSIBLE_STRINGS))
-print((2 + MESSAGE_LENGTH) * N_RANGE * N_BEARING * 2**(MESSAGE_LENGTH * 4))
+# print((2 + MESSAGE_LENGTH) * N_RANGE * N_BEARING * 2**(MESSAGE_LENGTH * 4))
+CHROMOSOME_LEN = len(ALL_POSSIBLE_STRINGS)
+
+INPUT_MAP = {s: i for i, s in enumerate(ALL_POSSIBLE_STRINGS)}
 
 
 BGCOLOR = BLACK

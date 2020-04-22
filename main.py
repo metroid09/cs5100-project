@@ -75,6 +75,10 @@ def runGame():
     #generate predators
     predators = gen_predators(terrain, CellType.PREDATOR, number=4)
 
+    for p in predators:
+        print(p.id)
+        print(p.get_chromosome_str())
+
     movers = gen_movers(terrain, CellType.PREY)
 
     sim_turn = 0

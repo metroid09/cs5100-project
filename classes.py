@@ -21,6 +21,8 @@ MESSAGE_LENGTH = config.MESSAGE_LENGTH
 N_RANGE = config.N_RANGE
 BEARINGS = config.BEARINGS
 N_BEARING = config.N_BEARING
+CHROMOSOME_LEN = config.CHROMOSOME_LEN
+INPUT_MAP = config.INPUT_MAP
 
 #             R    G    B
 WHITE     = (255, 255, 255)
@@ -101,13 +103,13 @@ def degree_to_bearing(x):
 
 def manhattan_to_string(dist):
     if dist < 1:
-        return "0001"
+        return "00"
     elif dist < 2:
-        return "0010"
+        return "01"
     elif dist < 3:
-        return "0100"
+        return "10"
     else:
-        return "1000"
+        return "11"
 
 
 def direction_to_string(dir: Direction):
@@ -121,7 +123,7 @@ def direction_to_string(dir: Direction):
         return "11"
 
 
-message_board = ["0" for i in range(MESSAGE_LENGTH)]
+message_board = ["0" for i in range(4)]
 
 
 class Cell(object):
@@ -251,8 +253,7 @@ class Predator(MoveableCell):
     move_queue = []
     manhattan_str = ''
     bearing_str = ''
-    last_msg = ''
-
+    last_msg = '0'
 
     """
     The length c of the chromosome string is a function of the
@@ -284,14 +285,13 @@ class Predator(MoveableCell):
 
     then we do that with 10 random predators, the best predators are used with crossover to breed the next set of predators with the genetic algorithm and 2 crossover breeding
     """
-    CHROMOSOME_LEN = (2 + MESSAGE_LENGTH) * N_RANGE * (N_BEARING * 2**(MESSAGE_LENGTH * 4))
     chromosome = [0 for x in range(CHROMOSOME_LEN)]
 
     def __init__(self, x, y, id, facing_direction, chromosome=[], **kwargs):
         if not kwargs.get('chromosome'):
-            self.chromosome = [random.choice([0, 1]) for x in range(self.CHROMOSOME_LEN)]
+            self.chromosome = [random.choice(["0", "1"]) for x in range(CHROMOSOME_LEN)]
         else:
-            self.chromosome = [bool(int(i)) for i in kwargs.get('chromosome')] # True if 1, False if 0
+            self.chromosome = [i for i in kwargs.get('chromosome')]
         if kwargs.get("cell_type"):
             kwargs.pop("cell_type")
         super().__init__(x, y, id, facing_direction, cell_type=CellType.PREDATOR, **kwargs)
@@ -304,6 +304,7 @@ class Predator(MoveableCell):
 
     def update_internal_state(self):
         global message_board
+        # DIRECTION_STRS, MSG_STRS, DIST_STRS, BEARING_STRS, MESSAGE_BOARD_STR
         state_str = (
             direction_to_string(self.facing_direction)
             + self.last_msg
@@ -311,7 +312,14 @@ class Predator(MoveableCell):
             + self.bearing_str
             + "".join(message_board)
         )
-        pass
+        # import ipdb; ipdb.set_trace()
+        msg_i = INPUT_MAP[state_str]
+        msg = self.chromosome[msg_i]
+        self.last_msg = msg
+        message_board[self.id] = msg
+
+    def get_chromosome_str(self):
+        return "".join(self.chromosome)
 
     def sense(self, mover: MoveableCell):
         manhattan_dist = abs(self.pos_x - mover.pos_x) + abs(self.pos_y - mover.pos_y)
