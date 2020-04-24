@@ -10,13 +10,17 @@ import math
 import random
 import sys
 from datetime import datetime
+from itertools import combinations
 
 import pygame
-import config
-from classes import CELL_COLORS, Cell, CellType, Direction, Predator, TerrainCell, MoveableCell, message_board, last_message_board
 from pygame.locals import *
+
+import config
+from classes import (CELL_COLORS, Cell, CellType, Direction, MoveableCell,
+                     Predator, TerrainCell, last_message_board, message_board)
 from colors import *
 from utils import dump_room, load_room
+from parents import PARENTS
 
 DISPLAYSURF = config.DISPLAYSURF
 
@@ -33,6 +37,98 @@ SIM_TURNS = config.SIM_TURNS
 CHROMOSOME_LEN = config.CHROMOSOME_LEN
 
 
+def chromosome_crossover(a, b):
+    if len(a) == len(b) and all([i in ["0", "1"] for i in a]) and all([i in ["0", "1"] for i in b]):
+        size = len(a)
+        random.seed(a=None, version=2)
+        i = random.randint(0, len(a)//2)
+        tmp1 = a[:i] + b[i:size-i] + a[size-i:]
+        tmp2 = b[:i] + a[i:size-i] + b[size-i:]
+        return tmp1, tmp2
+    else:
+        return (None, None)
+
+
+class Tournament():
+    """
+    parents is a list of tuples of binary chromosome strings and their performance (chromo_str, perf)
+    """
+    parents = []
+    contestants = []
+    chromo_map = {
+        # fitness -> chromo_string
+    }
+
+    def __init__(self, parents):
+        global CHROMOSOME_LEN
+        if not len(parents) > 0 and not len(parents[0]) == CHROMOSOME_LEN:
+            raise Exception("Must pass a list of binary strings of length {}".format(CHROMOSOME_LEN))
+        self.parents = parents
+        self.contestants = self.mix_parents()
+
+    def mix_parents(self):
+        parents = []
+        for i in combinations(self.parents, 2):
+            result = chromosome_crossover(i[0][0], i[1][0])
+            # format is str_1, str_2, max_fitness
+            parents.append((result[0], result[1], max(i[0][1], i[1][1])))
+        return parents
+
+    def run(self):
+        for a, b, score in self.contestants:
+            fitness_a = self.fitness_of(a)
+            fitness_b = self.fitness_of(b)
+            if max(fitness_a, fitness_b) > score:
+                import ipdb; ipdb.set_trace()
+                if fitness_a > fitness_b:
+                    chromo_map[fitness_a] = a
+                else:
+                    chromo_map[fitness_b] = b
+
+    def get_higher_score(self, parent_a, parent_b):
+        f_score = 0
+        while f_score <= max(parent_a[1], parent_b[1]):
+            print("testing")
+            contestants = chromosome_crossover(parent_a[0], parent_b[0])
+            fitness_a = self.fitness_of(contestants[0][0])
+            fitness_b = self.fitness_of(contestants[0][1])
+            if max(fitness_a, fitness_b) > max(parent_a[1], parent_b[1]):
+                import ipdb; ipdb.set_trace()
+                if fitness_a > fitness_b:
+                    print(contestants[0][0], fitness_a)
+                else:
+                    print(contestants[0][1], fitness_b)
+
+    def fitness_of(self, chromo_str):
+        for run in range(100):
+            n_max = 5000
+            num_scenarios = 100
+            num_captures = 0
+            num_blocks = 0
+            dist_avg = 100
+            time_to_capture = []
+            n_s = num_scenarios
+            while n_s > 0:
+                result = runGame(chromo_str)
+                if result["captured"]:
+                    num_captures += 1
+                num_blocks += result["num_blocks"]
+                dist_avg = (dist_avg + result["dist_avg"]) / 2
+                time_to_capture.append(result["num_turns"])
+                # showGameOverScreen()
+                n_s -= 1
+            fitness = calc_fitness(
+                n_max=n_max,
+                n_scenarios=num_scenarios,
+                n_captures=num_captures,
+                d_avg=dist_avg,
+                n_blocks=num_blocks,
+                time_to_capture=time_to_capture
+            )
+            self.chromo_map[chromo_str] = fitness
+            return fitness
+
+
 def main():
     global FPSCLOCK, DISPLAYSURF, BASICFONT
 
@@ -44,6 +140,9 @@ def main():
     BASICFONT = pygame.font.Font('freesansbold.ttf', 18)
     config.BASICFONT = BASICFONT
     pygame.display.set_caption(SIM_NAME)
+
+    test = Tournament(PARENTS[2:4])
+    test.get_higher_score(PARENTS[3], PARENTS[4])
 
     showStartScreen()
     chromo_map = {
@@ -88,6 +187,7 @@ def main():
         for key, value in chromo_map.items():
             if value > best[1]:
                 best = (key, value)
+        chromo_map = {}
         print("Best score was string {}".format(best[0]))
         print("Final score {}".format(best[1]))
         print("+++++++++++++++++++ FINAL ++++++++++++++++++++")
