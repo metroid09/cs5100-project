@@ -66,24 +66,41 @@ class Tournament():
         self.parents = parents
         self.contestants = self.mix_parents()
 
-    def mix_parents(self):
-        parents = []
-        for i in combinations(self.parents, 2):
-            result = chromosome_crossover(i[0][0], i[1][0])
+    def mix_parents(self, parents=None):
+        ret_parents = []
+        for i in combinations(self.parents if parents is None else parents, 2):
+            result = chromosome_crossover(i[0][1], i[1][1])
             # format is str_1, str_2, max_fitness
-            parents.append((result[0], result[1], max(i[0][1], i[1][1])))
-        return parents
+            ret_parents.append((result[0], result[1], max(i[0][0], i[1][0])))
+        return ret_parents
 
     def run(self):
-        for a, b, score in self.contestants:
-            fitness_a = self.fitness_of(a)
-            fitness_b = self.fitness_of(b)
-            if max(fitness_a, fitness_b) > score:
-                import ipdb; ipdb.set_trace()
+        """
+        Tries to run a tournament composed of mixed parents
+        Best of two children moves on and best 5 children overall move on.
+        5 Parents are moved back into the round and mixed with children again
+        """
+        while True:
+            next_round = []
+            for a, b, score in self.contestants:
+                # Maybe make this run in threads and run simultaneously? This can be easily run in parallel. (run all fitness tests simultaneously)
+                fitness_a = self.fitness_of(a)
+                fitness_b = self.fitness_of(b)
                 if fitness_a > fitness_b:
-                    chromo_map[fitness_a] = a
+                    self.chromo_map[fitness_a] = a
                 else:
-                    chromo_map[fitness_b] = b
+                    self.chromo_map[fitness_b] = b
+            fitness_list = [(score, s) for score, s in self.chromo_map.items()]
+            fitness_list.sort(key=lambda x: x[0], reverse=True)
+            print(fitness_list[:5])
+            for score, string in fitness_list[:5]:
+                try:
+                    next_round.append([score, string])
+                except TypeError:
+                    continue
+            while len(next_round) < 10:
+                next_round.append(random.choice(self.parents))
+            self.contestants = self.mix_parents(parents=next_round)
 
     def get_higher_score(self, parent_a, parent_b):
         f_score = 0
@@ -93,7 +110,6 @@ class Tournament():
             fitness_a = self.fitness_of(contestants[0][0])
             fitness_b = self.fitness_of(contestants[0][1])
             if max(fitness_a, fitness_b) > max(parent_a[1], parent_b[1]):
-                import ipdb; ipdb.set_trace()
                 if fitness_a > fitness_b:
                     print(contestants[0][0], fitness_a)
                 else:
@@ -125,7 +141,6 @@ class Tournament():
                 n_blocks=num_blocks,
                 time_to_capture=time_to_capture
             )
-            self.chromo_map[chromo_str] = fitness
             return fitness
 
 
@@ -141,8 +156,8 @@ def main():
     config.BASICFONT = BASICFONT
     pygame.display.set_caption(SIM_NAME)
 
-    test = Tournament(PARENTS[2:4])
-    test.get_higher_score(PARENTS[3], PARENTS[4])
+    test = Tournament(PARENTS)
+    test.run()
 
     showStartScreen()
     chromo_map = {
