@@ -260,16 +260,16 @@ def runGame(chromo_str):
                 }
 
         # # Render
-        # DISPLAYSURF.fill(BGCOLOR)
-        # for l in terrain:
-        #     for cell in l:
-        #         cell.render()
-        # for mover in movers:
-        #     mover.render()
-        # for predator in predators:
-        #     predator.render()
-        # pygame.display.update()
-        # FPSCLOCK.tick(FPS)
+        DISPLAYSURF.fill(BGCOLOR)
+        for l in terrain:
+            for cell in l:
+                cell.render()
+        for mover in movers:
+            mover.render()
+        for predator in predators:
+            predator.render()
+        pygame.display.update()
+        FPSCLOCK.tick(FPS)
         last_message_board = message_board
         sim_turn += 1
 
